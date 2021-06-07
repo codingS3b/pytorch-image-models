@@ -22,6 +22,7 @@ import logging
 from functools import partial
 from collections import OrderedDict
 from copy import deepcopy
+from timm.models.layers.drop import drop_path
 
 import torch
 import torch.nn as nn
@@ -29,7 +30,7 @@ import torch.nn.functional as F
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from .helpers import build_model_with_cfg, overlay_external_default_cfg
-from .layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
+from .layers import PatchEmbed, PatchEmbed3D, Mlp, DropPath, trunc_normal_, lecun_normal_
 from .registry import register_model
 
 _logger = logging.getLogger(__name__)
@@ -315,6 +316,43 @@ class VisionTransformer(nn.Module):
         else:
             x = self.head(x)
         return x
+
+
+class VisionTransformer3D(VisionTransformer):
+    def __init__(self, img_size=[32, 64, 64], patch_size=16, in_chans=3,
+                 num_classes=1000, embed_dim=768, depth=12,
+                 num_heads=12, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+                 representation_size=None, distilled=False,
+                 drop_rate=0., attn_drop_rate=0., drop_path_rate=0., norm_layer=None,
+                 act_layer=None, weight_init=''):
+        """
+        Args:
+            img_size (int, tuple): input image size
+            patch_size (int, tuple): patch size
+            in_chans (int): number of input channels
+            num_classes (int): number of classes for classification head
+            embed_dim (int): embedding dimension
+            depth (int): depth of transformer
+            num_heads (int): number of attention heads
+            mlp_ratio (int): ratio of mlp hidden dim to embedding dim
+            qkv_bias (bool): enable bias for qkv if True
+            qk_scale (float): override default qk scale of head_dim ** -0.5 if set
+            representation_size (Optional[int]): enable and set representation layer (pre-logits) to this value if set
+            distilled (bool): model includes a distillation token and head as in DeiT models
+            drop_rate (float): dropout rate
+            attn_drop_rate (float): attention dropout rate
+            drop_path_rate (float): stochastic depth rate
+            norm_layer: (nn.Module): normalization layer
+            weight_init: (str): weight init scheme
+        """
+        super().__init__(img_size, patch_size, in_chans, num_classes, embed_dim, depth, num_heads,
+                         mlp_ratio, qkv_bias, qk_scale, representation_size, distilled, drop_rate,
+                         attn_drop_rate, drop_path_rate,
+                         embed_layer=PatchEmbed3D,
+                         norm_layer=norm_layer,
+                         act_layer=act_layer,
+                         weight_init=weight_init)
+
 
 
 def _init_vit_weights(m, n: str = '', head_bias: float = 0., jax_impl: bool = False):
